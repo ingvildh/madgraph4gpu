@@ -146,6 +146,15 @@ fptype * allMEs  // output: allMEs[nevt], final |M|^2 averaged over all heliciti
 ); 
 
 //--------------------------------------------------------------------------
+
+#ifdef __CUDACC__
+__global__ 
+void multiplyMatrixTensorCore(double *a,
+double *b, 
+double*c);
+#endif
+
+//--------------------------------------------------------------------------
 }
 
 #endif // MG5_Sigma_sm_gg_ttxgg_H
