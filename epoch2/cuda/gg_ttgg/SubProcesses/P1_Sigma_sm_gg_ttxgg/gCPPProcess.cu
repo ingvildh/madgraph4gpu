@@ -16,6 +16,11 @@
 
 #include "gCPPProcess.h"
 
+#ifdef __CUDACC__
+#include "mma.h"
+using namespace nvcuda;
+#endif
+
 //==========================================================================
 // Class member functions for calculating the matrix elements for
 // Process: g g > t t~ g g WEIGHTED<=4 @1
@@ -376,7 +381,7 @@ __device__ void calculate_wavefunctions(int ihel, const fptype * allmomenta,
   // Amplitude(s) for diagram number 42
   FFV1_0(w[23], w[11], w[5], cxtype(cIPC[2], cIPC[3]), &amp[0]); 
   jamp[17] += -amp[0]; 
-  // Amplitude(s) for diagram number 43
+  // nclude "mma.h"Amplitude(s) for diagram number 43
   FFV1_0(w[21], w[11], w[1], cxtype(cIPC[2], cIPC[3]), &amp[0]); 
   jamp[15] += -amp[0]; 
   // Amplitude(s) for diagram number 44
