@@ -140,6 +140,13 @@ void sigmaKin_setGoodHel(const bool * isGoodHel);  // input: isGoodHel[ncomb] - 
 __global__
 void sigmaKin(const fptype * allmomenta,  // input: momenta as AOSOA[npagM][npar][4][neppM] with nevt=npagM*neppM
 fptype * allMEs  // output: allMEs[nevt], final |M|^2 averaged over all helicities
+#ifdef __CUDACC__
+#ifdef MGONGPU_FPTYPE_DOUBLE
+, double * A_block,
+double * B,
+double * C
+#endif
+#endif
 #ifndef __CUDACC__
 , const int nevt  // input: #events (for cuda: nevt == ndim == gpublocks*gputhreads)
 #endif

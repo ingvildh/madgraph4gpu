@@ -172,17 +172,6 @@ int main(int argc, char **argv)
     }
     bool _print{false};
   } cudaTearDown(debug);
-
- std::cout << "HALLO!!\n";
- size_t limit = 1024*1024*1024*1;
- size_t size;
- cudaDeviceGetLimit(&size, cudaLimitMallocHeapSize);
- std::cout << size << std::endl;
- cudaDeviceSetLimit(cudaLimitMallocHeapSize, limit);
- std::cout << cudaGetErrorString(cudaPeekAtLastError());
- cudaDeviceGetLimit(&size, cudaLimitMallocHeapSize);
- std::cout << size << std::endl;
-
 #endif
 
   // --- 0a. Initialise physics process
@@ -395,13 +384,35 @@ int main(int argc, char **argv)
     const std::string skinKey = "3a SigmaKin";
     timermap.start( skinKey );
 #ifdef __CUDACC__
+#ifdef MGONGPU_FPTYPE_DOUBLE
+    //Work memory for tensor core color algebra
+    double* A_block;
+    double* B;
+    double* C;
+    cudaMalloc(&A_block, 24*24*sizeof(double));
+    cudaMalloc(&B, 24*8*threads*blocks*sizeof(double));
+    cudaMalloc(&C, 8*8*18*threads*blocks*sizeof(double));
+#endif
+#ifdef  MGONGPU_FPTYPE_DOUBLE
 #ifndef MGONGPU_NSIGHT_DEBUG
-    gProc::sigmaKin<<<gpublocks, gputhreads>>>(devMomenta.get(), devMEs.get());
+    gProc::sigmaKin<<<gpublocks, gputhreads>>>(devMomenta.get(), devMEs.get(), A_block, B, C);
+#else
+    gProc::sigmaKin<<<gpublocks, gputhreads, ntpbMAX*sizeof(float)>>>(devMomenta.get(), devMEs.get(), A_block, B, C);
+#endif
+    checkCuda( cudaPeekAtLastError() );
+    checkCuda( cudaDeviceSynchronize() );
+    cudaFree(A_block);
+    cudaFree(B);
+    cudaFree(C);
+#else
+#ifndef MGONGPU_NSIGHT_DEBUG
+    gProc::sigmaKin<<<gpublocks, gputhreads>>>(devMomenta.get(), devMEs.get(), A_block, B, C);
 #else
     gProc::sigmaKin<<<gpublocks, gputhreads, ntpbMAX*sizeof(float)>>>(devMomenta.get(), devMEs.get());
 #endif
     checkCuda( cudaPeekAtLastError() );
     checkCuda( cudaDeviceSynchronize() );
+#endif
 #else
     Proc::sigmaKin(hstMomenta.get(), hstMEs.get(), nevt);
 #endif

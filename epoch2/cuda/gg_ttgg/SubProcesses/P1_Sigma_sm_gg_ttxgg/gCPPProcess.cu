@@ -1175,13 +1175,14 @@ __device__ void calculate_wavefunctions(int ihel, const fptype * allmomenta,
       -64, -64, 512}};
 
   #ifdef __CUDACC__
+  #ifdef MGONGPU_FPTYPE_FLOAT
 
   const int a_rows = ncolor;
   const int a_cols = ncolor;
 
   //STEP 1: PAD VECTOR B TO MATRIX
   const int paddedWidth = 8; //Width of padded matrix
-  double* B = (double*) malloc(a_cols*paddedWidth*sizeof(double));
+  //double* B = (double*) malloc(a_cols*paddedWidth*sizeof(double));
   for (int i = 0; i < a_cols*paddedWidth; i++) B[i] = 0;
   for (int row = 0; row < a_cols; row++) {
     B[paddedWidth*row + 0] = jamp[row].real();
@@ -1189,8 +1190,8 @@ __device__ void calculate_wavefunctions(int ihel, const fptype * allmomenta,
   }
 
   //STEP 2: DO BLOCKING HERE!
-  double* A_block = (double*) malloc(a_rows*a_cols*sizeof(double));
-  for (int i = 0; i < a_rows*a_cols; i++) A_block[i] = 0;
+  //double* A_block = (double*) malloc(a_rows*a_cols*sizeof(double));
+  //for (int i = 0; i < a_rows*a_cols; i++) A_block[i] = 0;
 
   int base_offset_a_row = 0;
   int base_offset_a_col = 0;
@@ -1215,14 +1216,15 @@ __device__ void calculate_wavefunctions(int ihel, const fptype * allmomenta,
   }
 
   //STEP 3: USE TENSOR CORES
-  double* C = (double*) malloc(8*8*18*sizeof(double));
+  //double* C = (double*) malloc(8*8*18*sizeof(double));
   for (int i=0; i<8*8*18; i++) C[i] =0;
   for (int i=0; i<18;i++) {
     multiplyMatrixTensorCore<<<1,32>>>(A_block+32*i, B+32*(i%6), C+64*i);
   }
   cudaDeviceSynchronize();
 
-  cxtype* resultVector = (cxtype*) malloc(24*sizeof(cxtype)); 
+  //cxtype* resultVector = (cxtype*) malloc(24*sizeof(cxtype));
+  cxtype resultVector[24] = {0}; 
 
   double real_sum = 0;
   double imag_sum = 0;
@@ -1242,13 +1244,22 @@ __device__ void calculate_wavefunctions(int ihel, const fptype * allmomenta,
   }
 
   //STEP 4: FREE MEMORY
-  free(B);
-  free(A_block);
-  free(C);
-  free(resultVector);
+  //free(B);
+  //free(A_block);
+  //free(C);
+  //free(resultVector);
 
   #else
-
+   // Sum and square the color flows to get the matrix element
+  for(int icol = 0; icol < ncolor; icol++ )
+  {
+    cxtype ztemp = cxmake(0, 0); 
+    for(int jcol = 0; jcol < ncolor; jcol++ )
+      ztemp = ztemp + cf[icol][jcol] * jamp[jcol]; 
+    meHelSum = meHelSum + cxreal(ztemp * conj(jamp[icol]))/denom[icol]; 
+  }  
+  #endif
+  #else
   // Sum and square the color flows to get the matrix element
   for(int icol = 0; icol < ncolor; icol++ )
   {
