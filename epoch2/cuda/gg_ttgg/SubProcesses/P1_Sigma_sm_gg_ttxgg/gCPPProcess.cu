@@ -1437,6 +1437,13 @@ void sigmaKin_setGoodHel(const bool * isGoodHel)  // input: isGoodHel[ncomb] - h
 // Evaluate |M|^2, part independent of incoming flavour.
 
 __global__ void sigmaKin(const fptype * allmomenta, fptype * allMEs
+#ifdef __CUDACC__
+#ifdef MGONGPU_FPTYPE_DOUBLE
+, double * A_block,
+double * B,
+double * C
+#endif
+#endif
 #ifndef __CUDACC__
 , const int nevt  // input: #events (for cuda: nevt == ndim == gpublocks*gputhreads)
 #endif

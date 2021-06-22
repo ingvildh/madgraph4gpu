@@ -390,8 +390,8 @@ int main(int argc, char **argv)
     double* B;
     double* C;
     cudaMalloc(&A_block, 24*24*sizeof(double));
-    cudaMalloc(&B, 24*8*threads*blocks*sizeof(double));
-    cudaMalloc(&C, 8*8*18*threads*blocks*sizeof(double));
+    cudaMalloc(&B, 24*8*gputhreads*gpublocks*sizeof(double));
+    cudaMalloc(&C, 8*8*18*gputhreads*gpublocks*sizeof(double));
 #endif
 #ifdef  MGONGPU_FPTYPE_DOUBLE
 #ifndef MGONGPU_NSIGHT_DEBUG
@@ -406,7 +406,7 @@ int main(int argc, char **argv)
     cudaFree(C);
 #else
 #ifndef MGONGPU_NSIGHT_DEBUG
-    gProc::sigmaKin<<<gpublocks, gputhreads>>>(devMomenta.get(), devMEs.get(), A_block, B, C);
+    gProc::sigmaKin<<<gpublocks, gputhreads>>>(devMomenta.get(), devMEs.get());
 #else
     gProc::sigmaKin<<<gpublocks, gputhreads, ntpbMAX*sizeof(float)>>>(devMomenta.get(), devMEs.get());
 #endif
