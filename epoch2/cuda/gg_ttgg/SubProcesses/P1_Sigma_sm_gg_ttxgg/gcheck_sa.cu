@@ -172,6 +172,17 @@ int main(int argc, char **argv)
     }
     bool _print{false};
   } cudaTearDown(debug);
+
+ std::cout << "HALLO!!\n";
+ size_t limit = 1024*1024*1024*1;
+ size_t size;
+ cudaDeviceGetLimit(&size, cudaLimitMallocHeapSize);
+ std::cout << size << std::endl;
+ cudaDeviceSetLimit(cudaLimitMallocHeapSize, limit);
+ std::cout << cudaGetErrorString(cudaPeekAtLastError());
+ cudaDeviceGetLimit(&size, cudaLimitMallocHeapSize);
+ std::cout << size << std::endl;
+
 #endif
 
   // --- 0a. Initialise physics process
