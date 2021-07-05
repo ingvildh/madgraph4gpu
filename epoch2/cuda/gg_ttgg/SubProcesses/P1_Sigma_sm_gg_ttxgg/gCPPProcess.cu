@@ -1274,6 +1274,10 @@ __device__ void calculate_wavefunctions(int ihel, const fptype * allmomenta,
 
   __global__ void multiplyMatrixTensorCore(double *a, double *b, double*c) {
 
+  int offset_a = blockIdx.x*32;
+  int offset_b = (blockIdx.x%6)*32;
+  int offset_c = blockIdx.x*64;
+
   // Declare fragments
   wmma::fragment<wmma::matrix_a, 8, 8, 4, double, wmma::row_major> a_frag;
   wmma::fragment<wmma::matrix_b, 8, 8, 4, double, wmma::row_major> b_frag;
@@ -1283,14 +1287,14 @@ __device__ void calculate_wavefunctions(int ihel, const fptype * allmomenta,
   wmma::fill_fragment(c_frag, 0.0);
 
   // Load inputs into factor fragments
-  wmma::load_matrix_sync(a_frag, a, 4);
-  wmma::load_matrix_sync(b_frag, b, 8);
+  wmma::load_matrix_sync(a_frag, a+offset_a, 4);
+  wmma::load_matrix_sync(b_frag, b+offset_b, 8);
 
   // Do matrix multiplication C = A*B+C
   wmma::mma_sync(c_frag, a_frag, b_frag, c_frag);
 
   // Store output
-  wmma::store_matrix_sync(c, c_frag, 8, wmma::mem_row_major);
+  wmma::store_matrix_sync(c+offset_c, c_frag, 8, wmma::mem_row_major);
 
 }
 
