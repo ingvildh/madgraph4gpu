@@ -1179,51 +1179,48 @@ __device__ void calculate_wavefunctions(int ihel, const fptype * allmomenta,
 
   const int a_rows = ncolor;
   const int a_cols = ncolor;
+  const unsigned int block_matrix_rows = 3;
+  const unsigned int block_matrix_cols = 6;
+  const unsigned int block_rows = 8;
+  const unsigned int block_cols = 4;
 
-  //STEP 1: PAD VECTOR B TO MATRIX
+  // STEP 1: PAD VECTOR B TO MATRIX
   const int paddedWidth = 8; //Width of padded matrix
-  //double* B = (double*) malloc(a_cols*paddedWidth*sizeof(double));
   for (int i = 0; i < a_cols*paddedWidth; i++) B[i] = 0;
   for (int row = 0; row < a_cols; row++) {
     B[paddedWidth*row + 0] = jamp[row].real();
     B[paddedWidth*row + 1] = jamp[row].imag();
   }
 
-  //STEP 2: DO BLOCKING HERE!
-  //double* A_block = (double*) malloc(a_rows*a_cols*sizeof(double));
-  //for (int i = 0; i < a_rows*a_cols; i++) A_block[i] = 0;
-
+  // STEP 2: MATRIX BLOCKING
   int base_offset_a_row = 0;
-  int base_offset_a_col = 0;
-  int base_offset_a_block = 0;
-  int curr_offset_a_row = 0;
-  int curr_offset_a_col = 0;
-  int curr_offset_a_block = 0;
-  for (int blockrow = 0; blockrow < 3; blockrow++) {
-    for (int blockcol = 0; blockcol < 6; blockcol++) {
-      base_offset_a_row = blockrow*8;
-      base_offset_a_col = blockcol*4;
-      base_offset_a_block = 32*(6*blockrow + blockcol);
-      for (int row = 0; row < 8; row++) {
-        for (int col = 0; col < 4; col++) {
-          curr_offset_a_row = base_offset_a_row + row;
-          curr_offset_a_col = base_offset_a_col + col;
-          curr_offset_a_block = base_offset_a_block + row*4 + col;
-          A_block[curr_offset_a_block] = cf[curr_offset_a_row][curr_offset_a_col]; 
+    int base_offset_a_row = 0;
+    int base_offset_a_col = 0;
+    int base_offset_a_block = 0;
+    int curr_offset_a_row = 0;
+    int curr_offset_a_col = 0;
+    int curr_offset_a_block = 0;
+    for (int blockrow=0; blockrow<block_matrix_rows; blockrow++) {
+      for (int blockcol=0; blockcol<block_matrix_cols; blockcol++) {
+        base_offset_a_row = blockrow*block_rows;
+        base_offset_a_col = blockcol*block_cols;
+        base_offset_a_block = block_rows*block_cols*(block_matrix_cols*blockrow + blockcol);
+        for (int row=0; row<block_rows; row++) {
+          for (int col=0; col<block_cols;col++) {
+            curr_offset_a_row = base_offset_a_row + row;
+            curr_offset_a_col = base_offset_a_col + col;
+            curr_offset_a_block = base_offset_a_block + row*block_cols + col;
+            A_block[curr_offset_a_block] = A[curr_offset_a_row][curr_offset_a_col]; 
+          }
         }
       }
     }
-  }
 
   //STEP 3: USE TENSOR CORES
-  //double* C = (double*) malloc(8*8*18*sizeof(double));
-  for (int i=0; i<8*8*18; i++) C[i] =0;
-  for (int i=0; i<18;i++) {
-    multiplyMatrixTensorCore<<<1,32>>>(A_block+32*i, B+32*(i%6), C+64*i);
-  }
+  multiplyMatrixTensorCore<<<18,32>>>(A_block+32*i, B+32*(i%6), C+64*i);
   cudaDeviceSynchronize();
 
-  //cxtype* resultVector = (cxtype*) malloc(24*sizeof(cxtype));
+  // STEP 4: SUM TENSOR CORE RESULT INTO FINAL RESULT MATRIX
   cxtype resultVector[24] = {0}; 
 
   double real_sum = 0;
@@ -1239,15 +1236,10 @@ __device__ void calculate_wavefunctions(int ihel, const fptype * allmomenta,
     real_sum = 0; imag_sum = 0; 
   }
 
+  // STEP 5: COMPLETE MEHELSUM BY USING THE REAL COMPONENT FROM FINAL RESULT MATRIX
   for (int row = 0; row < 24; row++) {
     meHelSum += ((resultVector[row] * thrust::conj(jamp[row])).real())/denom[row];
   }
-
-  //STEP 4: FREE MEMORY
-  //free(B);
-  //free(A_block);
-  //free(C);
-  //free(resultVector);
 
   #else
    // Sum and square the color flows to get the matrix element
@@ -1279,7 +1271,9 @@ __device__ void calculate_wavefunctions(int ihel, const fptype * allmomenta,
 }
 
 #ifdef __CUDACC__
+
   __global__ void multiplyMatrixTensorCore(double *a, double *b, double*c) {
+
   // Declare fragments
   wmma::fragment<wmma::matrix_a, 8, 8, 4, double, wmma::row_major> a_frag;
   wmma::fragment<wmma::matrix_b, 8, 8, 4, double, wmma::row_major> b_frag;
@@ -1292,13 +1286,14 @@ __device__ void calculate_wavefunctions(int ihel, const fptype * allmomenta,
   wmma::load_matrix_sync(a_frag, a, 4);
   wmma::load_matrix_sync(b_frag, b, 8);
 
-  // KJØRA TEMPO
-  // (you can see how c_frag is both summand and accumulator)
+  // Do matrix multiplication C = A*B+C
   wmma::mma_sync(c_frag, a_frag, b_frag, c_frag);
 
   // Store output
   wmma::store_matrix_sync(c, c_frag, 8, wmma::mem_row_major);
+
 }
+
 #endif
 
 

@@ -158,7 +158,7 @@ double * C
 __global__ 
 void multiplyMatrixTensorCore(double *a,
 double *b, 
-double*c);
+double *c);
 #endif
 
 //--------------------------------------------------------------------------

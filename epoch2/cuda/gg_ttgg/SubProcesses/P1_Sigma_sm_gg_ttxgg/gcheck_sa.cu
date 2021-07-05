@@ -385,7 +385,7 @@ int main(int argc, char **argv)
     timermap.start( skinKey );
 #ifdef __CUDACC__
 #ifdef MGONGPU_FPTYPE_DOUBLE
-    //Work memory for tensor core color algebra
+    //Allocate work memory for tensor core color algebra
     double* A_block;
     double* B;
     double* C;
